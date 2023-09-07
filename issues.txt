@@ -1,0 +1,21 @@
+~zod:dojo> .^(json /gx/(scot %p our)/graph-store/(scot %da now)/keys/json)|
+bail: 4
+bail: 2
+drum: link [~zod %dojo]
+[unlinked from [p=~zod q=%dojo]]
+/gx/~zod/graph-store/~2023.9.3..08.47.30..19a1/keys/json
+[%drum-coup-fail ~zod p=~zod q=%dojo]
+[linked to [p=~zod q=%dojo]]
+
+
+- I get nacks, but not acks.
+- Wait, so do we send acks or not?? I am confused. How often do we resend a packet
+if we didn't get an ack? How long do we wait?
+
+- Can we call ls or cat with a scry call?  Is that what the %say gen is for?
+
+Q2: I guessed:
+=> Build Code: Gall 
+=> Start agents on a desk when |install is run: Gall
+
+
