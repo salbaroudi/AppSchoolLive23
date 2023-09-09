@@ -535,10 +535,72 @@ code here
 - Here we specified a new file, of type csv, and gave a list list of cords. Hoon looked up the csv.hoon mark, and used the grow arm accordingly...
 
 
+### App School Lesson 2:  Agents:
+
+- most agent arms produce the same two things:
+    - `[(list card) _this]`: which is a list of cards, and a reference to a modified agent after state change.
+- Urbit has a semi-reactive dtaa model - in which dependent values are updated as upstream values change.
+    - Practical Example: Think of MS Spreadsheets with cell variables.
+    - Via ship subscriptions kept by the agent, data changes are pushed upstream to each subscriber.
+        - Think of an RSS feed that auto-pushes.
+
+- **Goal of Lesson:** *Understand how agents communicate, and then examine how pokes and peeks work. Finally, we start working with subscriptions.*
+
+
 ### Understanding Cards Better:
 
-- read this before hitting Lesson 2!
+- when you write a small/medium-sized agent, expect 3-5 arms to be default.
+- To perform actions, we produce lists of cards, to interact with other agents on the internet, or other agents on your ship.
+- `_this`  is syntactic sugar for for $_(this) which means :give us the type!
+    - this is boiler plate so you can refer to the "kind of thing" quickly, when given an arg. 
+
+- Vanes communicate using `moves`, whilst Gall Agents communicate using `cards`.
+    - Cards can be converted into moves by Gall (in some circumstances).
+    - info|move| > info|card|, in general.
+
 - cards are a typed structure that store information. This is known as `card:agent:gall`. The data inside the three subtypes listed are known as *(wind  note  gift)*.  
+- cards come in two formats:
+    - `[%pass wire note]`: Which is sent forward to an agent.
+    - `[%give gift]`: Which is sent back to an agent.
+- the type wire is just a path of type cord (@ta). This is where the response will come back, for your agent to check.
+- Notes have more complicated structures. They are tuples of the form:
+    - `[%agent [=ship name=term] =task]`: For other agents.
+    -  `[%arvo note-arvo]`: Speficially for other vanes on your system!
+- Example: An ARVO Card:
+```
+::Example: An ARVO CARD
+:: outbound value or task
+:*  %pass       :: head tag
+    /some/ wire     :: wire = unique ID
+    %arvo        ::choose to give somethign to ARVO, or agent
+    %b          :: target vane
+    %wait       ::Behn Specific task.
+    (add ~m1  now.bowl)    ::@da
+==
+```
+
+- Example: An AGENT Card:
+```
+:: returned value
+:*  %pass
+    /some/other/wire/(scot %da now.bowl)
+    %agent
+    [~sampel-palnet  %target-agent]
+    %poke
+    mark
+    !>(value)
+```
+
+- ARVO outbound cards return through `++on-arvo`.
+- AGENT outbound Cards return through `++on-agent`.
+
+#### More on Pokes and Scries:
+
+- A poke is a simple message to an agent.
+- A scry is a request for data from an agent.
+    - See the scry diagram above for more details...
+
+
 
 #### Winds and Pass Cards:
 
@@ -653,36 +715,6 @@ Example: A %pass subscription, is structured as follows:
 
 ## Lesson 2: 
 
-- when you write a standard agent, expect 3-5 arms to be default.
-- produce a list of cards, to interact with other agents on the internet, or other agents on your ship.
-- _this  is ss for $_(this) which means :give us the type!
-    - this is boiler plate so you can refer to the "kind of thing" quickly, when given an arg. 
-
-
-::Example: An ARVO CARD
-:: outbound value or task
-:*  %pass       :: head tag
-    /some/ wire     :: wire = unique ID
-    %arvo        ::choose to give somethign to ARVO, or agent
-    %b          :: target vane
-    %wait       ::Behn Specific task.
-    (add ~m1  now.bowl)    ::@da
-==
-
-ARVO outbound cards return through ++on-arvo
-AGENT OUTBOUND Cards return through ++on-agent
-
-
-AGENT CARD:
-:: returned value
-
-:*  %pass
-    /some/other/wire/(scot %da now.bowl)
-    %agent
-    [~sampel-palnet  %target-agent]
-    %poke
-    mark
-    !>(value)
 
 
 ==
