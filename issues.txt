@@ -19,3 +19,8 @@ Q2: I guessed:
 => Start agents on a desk when |install is run: Gall
 
 
+- why does charlie-action get routed to /charlie/action.hoon? Why is it not /charlie-action.hoon?
+
+- need help understanding on-load in /app/charlie.hoon
+
+- For our scry: .^((list @) %gx /=charlie=/values/noun). Where exactly is /values/noun located?? In Clay somewhere?

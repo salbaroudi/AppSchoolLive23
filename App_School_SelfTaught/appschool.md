@@ -537,9 +537,10 @@ code here
 
 ### App School Lesson 2:  Agents:
 
+- Note: when you write a small/medium-sized agent, expect 3-5 arms to be default.
 - most agent arms produce the same two things:
     - `[(list card) _this]`: which is a list of cards, and a reference to a modified agent after state change.
-- Urbit has a semi-reactive dtaa model - in which dependent values are updated as upstream values change.
+- Urbit has a semi-reactive data model - in which dependent values are updated as upstream values change.
     - Practical Example: Think of MS Spreadsheets with cell variables.
     - Via ship subscriptions kept by the agent, data changes are pushed upstream to each subscriber.
         - Think of an RSS feed that auto-pushes.
@@ -549,7 +550,6 @@ code here
 
 ### Understanding Cards Better:
 
-- when you write a small/medium-sized agent, expect 3-5 arms to be default.
 - To perform actions, we produce lists of cards, to interact with other agents on the internet, or other agents on your ship.
 - `_this`  is syntactic sugar for for $_(this) which means :give us the type!
     - this is boiler plate so you can refer to the "kind of thing" quickly, when given an arg. 
@@ -598,9 +598,46 @@ code here
 
 - A poke is a simple message to an agent.
 - A scry is a request for data from an agent.
-    - See the scry diagram above for more details...
+    - See the scry diagram (above, Lesson 1) for more details.
 
 
+##### Charlie.hoon: A Poke and Scry Example Agent:
+
+- in this example, we have a app named %charlie which runs on two fake zods (~zod and ~nec) on our local machine. Each app has the %charlie desk installed, and sends messages to one another, to demonstrate our example.
+
+- The charlie desk consists of three files:
+    - `/app/charlie.hoon:`  Where are Gall app actually lives. With some default and modified arms.
+    - `/mar/charlie/action.hoon`: Our marks file, which will allow us to convert our poke data to a noun type..
+    - `/sur/charlie.hoon`: This is like a header file (??).
+
+- Recall our poke notation. Note that each agent can poke itself, and the other one as well:
+
+```
+agent:  %mark  [%action data...]
+
+::add to value stack of zod and nec
+charlie:  &charlie-action [%push ~zod 100]
+charlie:  &charlie-action [%push ~nec 55]
+
+::remove from value stack
+:charlie &charlie-action [%pop ~zod]
+```
+
+- Pokes, although simple, pass through our action.hoon mark, before hitting our ++on-poke arm.
+- You don't need to import marks into a agent. They are automatically chekced by Clay when it needs to use a mark.
+
+- **A Complication:**  Uribt is functional, so we can't mutate our state. So when we have a state change, the entire agent state must be replaced. This is what the modified `this` statement is for. It can be challenging to get the state back and out, due to the systems type expectaions (!!).
+
+
+#### Subscriptions:
+- Basic unit of a subscription is a path.
+- These paths, which are dynamic or static, are usually defined in the `++on-watch` arm.
+- The agent will send out updates called `%facts` on one or more path, and all subscribers of the paths will recieve them.
+- Agents talk to each other via cards, and cards are run in the order they are recieved.
+
+##### Delta Subscriber and Delta-Follower Example:
+
+- We do not program our agents for pokes or peeks, we only
 
 #### Winds and Pass Cards:
 
