@@ -635,11 +635,182 @@ charlie:  &charlie-action [%push ~nec 55]
 - The agent will send out updates called `%facts` on one or more path, and all subscribers of the paths will recieve them.
 - Agents talk to each other via cards, and cards are run in the order they are recieved.
 
+
 ##### Delta Subscriber and Delta-Follower Example:
 
-- We do not program our agents for pokes or peeks, we only
+- We do not program our agents for pokes or peeks, we only deal with subscriptions. We have one agent that handles subscriptions + state changes, and another that subscribes/queries (follower).
+- The files needed are as follows:
+    - `/app/delta-follower.hoon`:
+    - `/app/delta.hoon`:
+    - `/sur/delta.hoon`:
+    - `/mar/delta/action.hoon`:
+    - `/mar/delta/update.hoon`:
 
-#### Winds and Pass Cards:
+- For this example, both delta and delta-follower run **on the same fakezod**.
+- Some Example Behaviour between the two apps:
+
+```
+::OK, so its not true that we don't deal with pokes. We use them to build our number-list
+> :delta &delta-action [%push ~zod 30.000]
+> :delta &delta-action [%push ~zod 50.000]
+
+> :delta-follower [%sub ~zod]
+>=
+%delta-follower: subscribe succeeded!
+>>  [%fact %delta-update]
+>>  [%init values=~[50.000 30.000]]
+
+> :delta &delta-action [%push ~zod 10.000]
+>=
+>>  [%fact %delta-update]
+>>  [%push target=~zod value=10.000]
+```
+
+- Like before, we can push/pop numbers onto a list using a %push/%pop action. 
+- When delta-follower subscribes, delta sends a fact back with a list of values.
+- Everytime we push more numbers, delta will send out facts to all subscribers with the updated list of values.
+
+-  “Route on wire before sign, never sign before wire.” That is, the path you subscribed on should be the basis for decision making, then the internal details.
+
+
+
+#### HW2: The To Do List Example:
+
+- At the following [link](https://developers.urbit.org/guides/core/app-school/8-subscriptions#example.), this code tutorial is worked through. Notes below.
+- Lets go into the various facets of subscriptions first:
+
+- we have two apps running on the same machine, under two different fake galaxies (zod and nec, again...). They are `todo.hoon` and `todo-watcher.hoon`
+- the watcher will %poke todo tasks into the publisher, and the publisher will send them out to the subscriber as %facts.
+- types needed are defined in the /sur/todo.hoon directory, and we have mark files for actions and updates.
+
+##### Incoming Subscriptions:
+- Sub requests from external entitites arrive on the `++on-watch` arm. They produce a `(quip card _this)`.
+- the paths themselves are arranged in cells with each sub-directory listed as a %term (@tas).
+- We use wut-lus (?+) for the typical branching structure.
+
+```
+?+    path  (on-watch:def path)
+    [%updates ~]
+  ......
+  ......
+    [%blah %blah ~]
+
+```
+- Note: You can nest ?+'s to have dynamic, or more finely defined paths.
+- In addition to a path request, we need to check permissions. This is done comparing `src.bowl` to `our.bowl`. 
+- when a subscription is succesful or not, we send a %watch-ack card for our follower. It may be empty (success), or a stack trace if we crashed (a negative ack).
+- if successful, the subscription is updated and placed in our app's bowl.
+
+##### Sending Updates to Subs:
+
+- This is easy. For a given path with a set of subscribers, just send out a card. Gall will make sure every subscriber is sent one update.
+- A %give %fact card is sent. With a particular path, and a vase of data (if needed):
+
+```
+[%give %fact ~[/some/path /another/path] %some-mark !>('some data')]
+```
+
+##### Kicking Subs:
+
+- you just send a kick card:
+
+```
+[%give %kick ~[/some/path] `~sampel-palnet]
+```
+
+##### Outgoing Subscriptions:
+- this is the other side of the subs coin.
+- to initiate a sub, we send a %watch card:
+
+```
+[%pass /some/wire %agent [~some-ship %some-agent] %watch /some/path]
+```
+
+- If successful, the remote source should send a %watch-ack,which is processed by our `++on-agent` arm. A particular wire is also registered.
+- In genreal, the subscriber agent should process the %watch ack. Not just ignore/crash it.
+- you can subscribe to a ship multiple times, as long as you use a different wire everytime.
+
+##### Recieving Updates:
+
+- the subscriber will recieve a periodic stream of %fact cards.
+- These are processed by the `++on-agent` arm.
+- Typical Handling Pattern:  test the wire, test the sign being a %fact, test the mark in the cage, extract vase from cage, and apply logic. For Example:
+
+```
+++  on-agent
+  |=  [=wire =sign:agent:gall]
+  ^-  (quip card _this)
+  ?+    wire  (on-agent:def wire sign)
+      [%expected %wire ~]
+    ?+    -.sign  (on-agent:def wire sign)
+        %fact
+      ?+    p.cage.sign  (on-agent:def wire sign)
+          %expected-mark
+        =/  foo  !<(expected-type q.cage.sign)
+        .....
+  ......
+```
+
+- gall won't allow unsubscribed facts to come in - so don't worry about permissions.
+
+##### Getting Kicked:
+- You are not always kicked for a reason. Sometimes the agents buffer overflows, or there are memory issues.
+- Standard response: just resubscribe. If negative ack, then it might be your fault after all...
+
+##### Running Example, and Summary:
+
+```
+
+::If we don't add ~nec as a friend, ~zod will reject subscription:
+nec>> :todo-watcher [%sub ~zod]
+
+:: Allow nec:
+::Subscribe will now succeed.
+zod> :todo &todo-action [%allow ~nut]
+
+
+::Add some tasks:
+zod> :todo &todo-action [%add 'foo']
+zod> :todo &todo-action [%add 'bar']
+
+::You can look at the tasks in the bowl, with +dbug:
+zod> :todo +dbug
+>   [ %0
+  friends={~nut}
+    tasks
+  { [ p=170.141.184.505.349.079.206.522.766.950.035.095.552
+      q=[name='foo' done=%.n]
+    ]
+    [ p=170.141.184.505.349.079.278.538.984.166.386.565.120
+      q=[name='bar' done=%.n]
+    ]
+  }
+]
+
+::ONce you have a subscriber, if you add another task, ~nec will also get an update:
+zod> :todo &todo-action [%add 'baz']
+nec> [ %add
+  id=170.141.184.505.349.082.779.030.192.959.445.270.528
+  name='baz'
+]
+
+:: You can look at subscriber wires, outcoming and incoming with the following two commands:
+zod> :todo +dbug [%incoming %ship ~nut]
+nec> :todo-watcher +dbug [%outgoing %ship ~zod]
+```
+
+- Incoming subscription requests arrive in an agent's `on-watch` arm.
+- Gall will automatically produce a negative %watch-ack if on-watch crashed, and a positive one if it was successful.
+- Incoming subscribers are recorded in the `sup` field of the bowl.
+- on-watch can produce a %fact with a null (list path) which will go only to the new subscriber.
+- Updates are sent to subscribers in %fact cards, and contain a cage with a mark and some data in a vase.
+- A subscriber can be kicked from subscription paths with a %kick card specifying the ship in the (unit ship). All subscribers of the specified paths will be kicked if the (unit ship) is null.
+- An outgoing subscription can be initiated with a %watch card.
+- The %watch-ack will come back in to the subscriber's on-agent arm as a sign, and may be positive or negative, depending on whether the (unit tang) is null.
+- %facts will also arrive in the subscriber's on-agent arm.
+
+
+#### Pass Cards:
 
 - Gall will only accept %pass and %give types of winds.
 - %pass:
@@ -714,27 +885,427 @@ Example: A %pass subscription, is structured as follows:
 [%give  %kick  ~[/some/path  /another] ~some-ship]
 ```
 
-- Summary Image of Card Types (see below):
+- Summary Image of Card Types:
 
 ![cardtypes](./img/card-diagram.png)
 
 
-## Lesson 2: More on Agents:
 
-- upper-level (vane) components communicate with moves, while Gall agents communciate with **cards**.
-- Recall from last time, two of our unsolicited cards are [%pass wire note] and [%give gift] types. 
-    - *notes* are either of type %agent or %arvo. The former is for Gall agents to talk to other gall agents.
-    - if we give a gift, this is to poke, ack or kick other agents...
+### Lesson 3:  On Passing Data:
+
+- Goal: We saw last time that Gall agents consist of at least /app, /sur and /mar/agent-name/ files. what are the support files, what do they expect??
+- again, agent deal with one time requests, or subscriptions.
+- we can do a scry to get a one time data request.
+    - Another method: subscirbe, recieve the response you want as a gift, and leave (send a %leave card).
+        - Use: The [venter-pattern](https://github.com/niblyx-malnus/venter-pattern/tree/main)
+        - we do this because scries can be restricted. Instead, pokes are processed under kinds of actions.
+- (list card) _this == quip card _this
+- on poke, watch, load init, leave => where we normally change our state.
+- pattern: If you subscribe, there is an %init state that we send to follower
+- the noun mark file is usually sufficient for native urbit apps to talk to each other...
+    - for json, we need something more sophisticated.
+
+#### Structure Files:
+
+- Why do we need them? We have a strongly typed language (Hoon). Our agents need a common set of type defintions in which to communicate.
+    - **Analogy:** A structure File defines a common language of nouns and actions, so our agents can talk to one another.
+- Lets look at the different structural types below, in the example below:
+
+```
+|%
++$  id  @
++$  name  @t
++$  task  [=name done=?]
++$  tasks  (map id task)
++$  action
+  $%  [%add =name]
+      [%del =id]
+      [%toggle =id]
+  ==
++$  update
+  $%  [%add =id =name]
+      [%del =id]
+      [%toggle =id]
+      [%initial =tasks]
+  ==
+--
+
+```
+- We can have simple structural definitions:
+    - `id` is just an empty aura. `name` is just a cord.
+    - A `task` is a cell with the first element pinned to face name, and the second element being a loobean value.
+- More sophisticated definitions:
+    - all of our `tasks` are placed in a map, from ids to task elements (@ -> [=name done=?]) 
+    - the action and update marks are type unions, that handle pokes for the todo agent, whilst the update mark deals with todo-watcher events.
 
 
-### Pokes and Peeks:
+#### Marks:
+- Unlike structure files, mark files are (usually) pretty simple. They allow us to convert to/from our given structure marks. In essence, they direct the top level translating, whilst the structures, mold, and basic system types handle the direct translations and grammar (so to speak).
+- Lets look again at a basic mold:
 
-- Pokes are messages to agents (not vanes).
-- A peak is a kind of skry: it queries other name spaces for pieces of state data.
--
+```
+/-  todo
+|_  =action:todo
+++  grab
+  |%
+  ++  noun  action:todo
+  --
+++  grow
+  |%
+  ++  noun  action
+  --
+++  grad  %noun
+--
+```
+
+- ++grab: Conversion TO our mark, from something else. 
+    - **How it works:** we have a noun arm, (what we start from), it calls the action structure in the todo.hoon structure file in our library. So it calls: `(action:todo  [some-noun])` accordingly. Our noun is coerced to one of the type union options found in the action TU structure.
+- ++grow: Conversion FROM ourmark, to something else. 
+    - **How it works:** Notice that we have a term name %noun for our arm. We also use the door input as the expression for the arm. Because everything is a noun...we just return what was passed in (trivial).
+- because this mark is found at /mar/todo/action.hoon, any term recieved that is `%todo-action` will be matched against this mark file for processing.
 
 
-#### Agent and Arvo Commands in Dojo:
+#### Dealing with JSON Data:
+
+- In Hoon, JSON is converted to an internal data-type - mainly nested cells with type information.
+    - this is because hoon is strongly typed, while Java Script ON conveys no type information at all.
+    - this effectively decouples what json means versus how it is written. Meaning the same, representation varies.
+
+- Our JSON mark has the following basic structure.:
+
+```
++$  json                    ::  normal json value
+  $@  ~                     ::  null
+  $%  [%a p=(list json)]    ::  array
+      [%b p=?]              ::  boolean
+      [%o p=(map @t json)]  ::  object
+      [%n p=@ta]            ::  number
+      [%s p=@t]             ::  string
+  ==                        ::
+```
+
+An Example of Json and its conversion is below:
+
+```
+{
+  "red": "#f44336",
+  "pink": "#e91e63",
+  "purple": "#9c27b0",
+  "deeppurple": "#673ab7",
+  "indigo": "#3f51b5",
+}
+
+:: Would internally convert to:
+
+[ ~  
+ [ %o  
+     p  
+   { [p='lightblue' q=[%s p='#03a9f4']]  
+     [p='purple' q=[%s p='#9c27b0']]  
+     [p='black' q=[%s p='#000000']]  
+     [p='red' q=[%s p='#f44336']]  
+     [p='indigo' q=[%s p='#3f51b5']]  
+    }
+  ]
+]
+```
+
+- Notice: That instead of "key":"value" pairs like in JS, we have [%o   p { [p='colorname'  q=[%s  p='hexvalue']] ...}]. Type information has been added down the nested chain, to aide in interpretation of our structure.
+- Also notice: our encoding is **one big unit [~ ...].**
+    => Remember to use `++need` to extract the data from the unit cell.
+
+- When converting from JSON to our internal reprsentation, the JSON is processed twice. Our json arrives as a cord and ...
+
+    1) First the JSON is parsed from text (@t cord) into a tagged cell representation +$json using `++dejs:html` arm
+        - This returns a unit, because a failure to parse may result in a ~. This covers our typing expectations for the Hoon compiler.
+        - For this notes file, lets refer to $json as "intermediate form"
+    2) Then the parsed JSON is sent through a custom-built reparser to retrieve particular values. This uses the `+dejs:format` arm to accomplish this.
+        - For this notes form, refer to the finally converted form as "native structural" form.
+![ImageJson](./img/json_conversion.png)
+
+- To Convert our fully typed internal structure, we run the input thorugh `+enjs:format` and then `+en-json:html`, accordingly. Coming full circle.
+
+- to use these four arms: `(de-js:html  'cord/whatever')` on dojo command line, for examples.
+
+##### JSON mixed type example: Some notes:
+
+- First we run the de-json:html arm. Note the following quirks:
+    - Most of the values are still strings, but note at the end that spouse is null; isAlive is a boolean in loobean clothes; and age is a number as a knot.
+    - The %n number type is a @ta rather than something like a @ud that you might expect. This is because JSON's number type may be either an integer or floating point, so it's left as a knot which can then be parsed to a @ud or @rd with the appropriate +dejs:format function.
+
+- Next we run the reparsing Json Arms:
+- if you are given a json cell structure, it is naive to probe the structure using lark notation or +K notation (walking the tree).
+- more professionally, we want to make our own reparser gate.
+    - this is not an easy task, but is well worth it.
+
+
+##### Design and Walkthrough of a simple reparser...
+
+- Lets examine the full example below, which is run in Dojo terminal:
+
+```
+:: 1) first we feed our example to the de-json:html arm to get our structure  
+:: representation. We then feed this as an input to the need gate, which is
+:: used to just unwrap a unit. The unwrapped structure has js pinned as a 
+:: face.
+> =js %-  need  %-  de-json:html
+  '''
+  {
+    "name": ["Jon", "Johnson", "of Wisconsin"],
+    "member": true,
+    "dues": 123
+  }
+  '''
+
+
+::2) WE can see how our example has turned out.
+:: most of our values appear to have converted correctly, but we have lots
+:: of superfluous structure.
+> js
+[ %o
+    p
+  { [p='dues' q=[%n p=~.123]]
+    [p='member' q=[%b p=%.y]]
+    [p='name' q=[%a p=~[[%s p='Jon'] [%s p='Johnson'] [%s p='of Wisconsin']]]]
+  }
+]
+
+
+::3)  We define our reparser. The face reparser is pinned to "=, dejs:format"
+:: Recall that =, (tiscom) is used to expose a namespace. Specifically,
+:: the dejs:format namespace. This makes the two letter terms "bo, so..." shorter.
+
+
+> =reparser =,  dejs:format
+%-  ot
+:~
+  [%name (at ~[so so so])]
+  [%member bo]
+  [%dues ni]
+==
+
+::4) Now we take our reparser gate and run our js structure through it. We ::pick out our subterms, and compile them into a raw 3ple cell.
+> (reparser js)
+[['Jon' 'Johnson' 'of Wisconsin'] %.y 123]
+
+
+
+```
+
+**Other Notes:**
+
+- In our reparser we use the de-js:format core's two letter functions (bo, so, ni...). These are shortened in name because we
+  use the tiscom rune.
+- basically, if you expect a certain type of value (integer, date...), you need to use a two-letter function in the format library to properly cast it.
+- Lets list some of the gates we can use:
+
+    - Number Functions:
+        - ++ne - decode a number to a @rd.
+        - ++ni - decode a number to a @ud.
+        - ++no - decode a number to a @ta.
+        - ++nu - decode a hexadecimal string to a @ux.
+        - Example usage: (ni:dejs:format n+'123')
+
+    - String Functions:
+        - ++sa - decode a string to a tape.
+        - ++sd - decode a string containing a @da aura date value to a @da.
+        - ++se - decode a string containing the specified aura to that aura.
+        - ++so - decode a string to a @t.
+        - ++su - decode a string by parsing it with the given parsing rule.
+
+
+    - Array Functions:
+        - ++ (ar 2fun) - make an list with given type values inside.
+        - ++ (as 2fun) - make a set with given type values inside.
+        - ++ (at 2fun) - makes an n tuple with given type values inside.
+        - Example Usage: `((ar so):dejs:format a+[s+'foo' s+'bar' s+'baz' ~])`
+        - Notice: we give a 2fun (so, ni...) as a second argument to complete our gate call. Looks curried.
+
+    - Many ++dejs functions take other ++dejs functions as their arguments. A complex nested $json decoding function can be built up in this manner.
+
+    - Object Functions:
+        - ++of - decode an object containing a single key-value pair to a head-tagged cell.
+        - ++ot - decode an object to a n-tuple.
+        - ++ou - decode an object to an n-tuple, replacing optional missing values with a given value.
+        - ++oj - decode an object of arrays to a jug.
+        - ++om - decode an object to a map.
+        - ++op - decode an object to a map, and also parse the object keys with a parsing rule.
+
+- **Dealing with Errors/Other Quirks:**
+
+- if you choose the wrong decoder/value pair, hoon will highlight which structure cell is having a problem.
+- if you have a key that is not recognized, hoon will point to the key.
+- when dealing with mixed type JSON inputs, you sometimes have to use @t head tags instead of term ones?
+
+```
+> =js %-  need  %-  de-json:html  '{ "firstName": "John", "lastName": "Smith", "isAlive": true, "age": 27, "address": { "streetAddress": "21 2nd Street", "city": "New York", "state": "NY", "postalCode": "10021-3100" }, "phoneNumbers": [ { "type": "home", "number": "212 555-1234" }, { "type": "office", "number": "646 555-4567" } ], "children": [ "Catherine", "Thomas", "Trevor" ], "spouse": null}'
+
+> =reparser =,  dejs:format
+  %-  ot
+  :~
+    ['firstName' so]
+    [%age ni]
+    [%address (ot ~[['streetAddress' so] [%city so] [%state so]])]
+  ==
+
+> (reparser js)  
+['John' 27 '21 2nd Street' 'New York' 'NY']
+```
+
+- Notice that our reparser only captures some of the head/value pairs, and ignores others. 
+- For camelCase names, we used @t terms (cant do this with terms).
+
+##### When do we Parse, when do we Reparse?
+
+- If web interface is orthogonal to agent interactions, you can deal with %json data in the arms.
+
+- For a unified interface (web console and other agents), custom mark files can be created.
+
+- You can make a %my-custom-mark file as an adapter to your Gall agent. This file will convert between what Eyre gives you, and what your Gall Agent expects.
+- It can simpliy your gall agent parsing of data.
+
+
+#### Additional Guides: JSON Extended Example:
+
+- In general, when dealing with a web-interface, we will have to convert JSON data into something Hoon can parse and process.
+- This is why the %json mark and $json structure exists.
+- We have access to the following arms:
+    - +en:json:html: Convert raw JSON text to $json structured format.
+    - +de:json:html: Inverse.
+    - enjs:format: Convert native atoms and structures to $json intermediate structure.
+    - dejs:format: Convert intermediate structure format to more native interpretations of hoon data.
+
+- a typical gall agent has files in /sur to handle all kinds of requests, pokes, gives and scries...
+- agents that only interact with other agents use simple %noun mark files - they can talk with native types (lists and auras), and no translation is really needed.
+
+##### The $JSON (intermediate) type:
+
+Is as follows:
+
+```
++$  json                    ::  normal json value
+  $@  ~                     ::  null
+  $%  [%a p=(list json)]    ::  array
+      [%b p=?]              ::  boolean
+      [%o p=(map @t json)]  ::  object
+      [%n p=@ta]            ::  number
+      [%s p=@t]             ::  string
+  ==                        ::
+```
+
+- More Concretely:
+
+![jsonChart](./img/jsonchart.png)
+
+- Note that %n number is left as a knot, as it might be an integer or FP number. We further parse it later...
+
+##### Json-test.hoon example:
+
+- See the Json_Test_Directory for more details. Mark and Structure files are commented to explain everything.
+
+```
+:: place in /lib, commit to %base, and build it: 
+=user-lib -build-file %/lib/json-test/hoon
+
+- Our example $user structure:
+=usr `user:user-lib`['john456' ['John' 'William' 'Smith'] now 'john.smith@example.com']
+
+:: Now we convert json text to a $JSON intermediate structure:
+=usr-json (to-js:user-lib usr)
+
+::For fun, lets convert to actual json text.
+(en:json:html (to-js:user-lib usr))
+> '{"joined":1694984015,"username":"john456","name":["John","William","Smith"],"email":"john.smith@example.com"}'
+
+::We can go back, from our intermediate $json text to our $user structure...
+(from-js:user-lib usr-json)
+
+```
+
+- when dejs:format is used, we usualy use tiscom (=,) to expose the namespace.
+- if you don't have a +dejs 2 letter function, you can just write one. It needs to be a gate that takes a $json input, as its requirement.
+
+##### More +dejs Work:
+
+- +of gate:
+    -  function takes an object containing a single key-value pair, decodes the value with the corresponding +dejs function in a key-function list, and produces a key-value tuple.
+    - This is useful when there are multiple possible objects you might receive, and tagged unions are a common data structure in hoon.
+
+    - Notice our example is just a type union, and its not recursive (cant nest expressions and detect things).
+    - **Example is fragile**, if you change anything that doesnt align with the three defined structures, you get a crash.
+
+- +ou gate:
+    - decode a $json object into a n-tuple, using our usual matching functions.
+    - special feature: you cam set some key-value pairs as optional/mandatory.
+        - optional ones replaced with a given noun (if missing) (just a sig ~)
+    - we do this with two special support functions:
+        - +un crashes if its arg is ~. This allows you to set a key-value pair as mandatory.
+        - +uf takes two args, a noun and a dejs function. If the input is sig, we substitute in a noun instead of crashing.
+    - if you add duplicate terms, it matches the last one.
+
+
+##### The Json Mark file Example:
+
+- in /lib, lets make a user.hoon. This will help us wiht our user structures.:
+
+- "From this mark file, Clay can build mark conversion gates between the %json mark and our %user mark, allowing the conversion of $json data to a $user structure and vice versa."
+
+- Simple Tutorial is below:
+
+```
+:: Make a sample input. Converts JS to $JSON intermediate structure.
+:: raw JSON -> Intermediate $json form
+=jon (need (de:json:html '{"joined":1631440078,"username":"john456","name":["John","William","Smith"],"email":"john.smith@example.com"}'))
+
+::build our library so we can use its types:
+=user-lib -build-file %/lib/json-test/hoon
+
+::Ask Clay to build a mark conversion gate from %json to %user mark. We use a scry for this (!!!)
+=json-to-user .^($-(json user:user-lib) %cf /===/json/user)
+
+::And apply the gate with a binding. This takes $json to a $user structure:
+:: intermediate $json -> $user (native) form.
+=usr (json-to-user jon)
+
+::Lets go the other direction. We Scry again., to go from $user to $json:
+:: Back: $user to -> $json form
+=user-to-json .^($-(user:user-lib json) %cf /===/user/json)
+
+::Finally, test out our gate:
+(user-to-json usr)
+
+::and go one step further, convert all the way to json encoded text (that would be sent over the network from an FE)
+::$json -> raw json (full circle!)
+(en:json:html (user-to-json usr))
+
+
+```
+
+#### Receiving Data Through Marks:
+
+- We have covered a lot about mark and structure files. But what is really the end goal? This is what we want to accomplish:
+
+![dataloop](./img/data_loop.png)
+
+- This flow pattern is what we will use if we have a FE component messaging back and forth with the BE.
+
+
+
+#### Noun Normalization and Debugging Cages/Vases:
+- When one agent pokes another with a cage over a network, Gall looks up the mark and applies the ;; (micmic) rune
+- Never print them directly, as you might print the entire subject tree.
+    - use the `++sell` gate to print a vase.
+
+### Miscellena:
+
+- how do we get agents to talk to each other? How do we formalize pokes and messages?  Thats what we learned this lesson.
+- /sur analogy: They are like structured header files.
+- note: if you launch two fake planets on the same machine, they still network through there external star/galaxy! Easiest with galaxies to test agents.
+- when adding a new agent + desk to install, remember to change desk.bill first!!
+- if we have three ways to fail, we return a unit unit unit cage (!!)
+
+
+### Agent and Arvo Commands in Dojo:
 
 - |pass [%d  %text  "hi world"]: send a note to a vane (here, the Dojo).
 - |suspend %gallname - stops an agent, keeps state.
@@ -750,17 +1321,8 @@ Example: A %pass subscription, is structured as follows:
     - get agents list:  >+agents  %base)
 
 
-## Lesson 2: 
 
-
-
-==
-- how do we get agents to talk to each other? How do we formalize pokes and messages?  Thats what we learned this lesson.
-- /sur analogy: They are like structured header files.
-- note: if you launch two fake planets on the same machine, they still network through there external star/galaxy! Easiest with galaxies to test agents.
-- when adding a new agent + desk to install, remember to change desk.bill first!!
-- if we have three ways to fail, we return a unit unit unit cage (!!)
-
+        
 ### References:
 
 [1] Agent Types:  https://developers.urbit.org/guides/core/app-school/types

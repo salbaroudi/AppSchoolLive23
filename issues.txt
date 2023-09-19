@@ -24,3 +24,31 @@ Q2: I guessed:
 - need help understanding on-load in /app/charlie.hoon
 
 - For our scry: .^((list @) %gx /=charlie=/values/noun). Where exactly is /values/noun located?? In Clay somewhere?
+
+- So if an agent crashes (!!), is it still running?
+
+- always merge from base. NEVER alter base (!!)
+    => Even if you restore your desk.bill, your vere instance will never load correctly again :(.
+
+
+- why would we subscribe, accept gift and leave, over just scrying? 
+
+=js %-  need  %-  de-json:html  '{"name": ["Jon", "Johnson", "of Wisconsin"],"member": true,"dues": 123}'
+
+=reparser =,  dejs:format
+%-  ot
+:~
+  [%name (at ~[so so so])]
+  [%member bo]
+  [%dues ni]
+==
+
+"Sometimes an agent's interactions with a web interface are totally distinct from its interactions with other agents. If so,
+ the agent could just have separate scry endpoints, poke handlers, etc, that directly deal with +$json data with a %json mark.
+  In such a case, you can include +$json encoding/decoding functions directly in the agent or associated libraries, using the general 
+  techniques demonstrated in the +$json encoding and decoding example section below.
+"
+=> Can we ever get away with minimal mark/sur files, or none at all? Is that possible?
+
+-json test: what is the |^ really saying? need help with this.
+    - namespacing issue
