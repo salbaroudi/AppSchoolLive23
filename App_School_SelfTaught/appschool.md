@@ -1325,7 +1325,7 @@ Is as follows:
 1a) Fill out the input boxes the npm packages asks for. Set localhost:8080 to your access URL. For a fake zod, this is the default.
     - a folder /echo will be generated from this. Inside is a /ui, /desk and README.md folder
     
-2)  Enter the echo/ui folder and run  
+2)  Enter the `echo/ui` folder and run  
 ```
 cd /echo/ui
 npm install @urbit/http-api
@@ -1344,12 +1344,14 @@ npm install @urbit/http-api
 /app/echo.hoon
 /desk.docket-0
 /desk.bill
+
 ```
 
 Grab the contents for each file from [here](https://github.com/hoon-school/app-school-2023.8/blob/master/aa4.md).
 
+**Remember to add:**  `$ echo "~[%echo]" > echo/desk.bill` to desk.bill (!!).
 
-5) We also need the docket mark files. To get these, mount the %garden desk in your zod. Run the following commands:
+5) We also need the docket mark files. To get these, mount the `%garden` desk in your zod. Run the following commands:
 
 ```
 >|mount %garden
@@ -1358,16 +1360,24 @@ $ cp ~/zod/landscape/lib/docket.hoon ./lib
 $ cp ~/zod/landscape/sur/docket.hoon ./sur
 ```
 
-6) There are additional files we need for /lib, /sur and /mar. You can copy over the files from a mounted %delta desk, and place them
-in the /echo folder. These are the minimum needed to run our echo demo.
+You can also just import the whole directories, which bloats your desk but is safer:
+
+```
+> cp -r ../../zod/base/mar/* mar
+> cp -r ../../zod/base/lib/* lib
+> cp -r ../../zod/base/sur/* sur
+
+```
+
+6) There are additional files we need for /lib, /sur and /mar. **For My Machine:** You can copy over the files from a mounted %delta desk, and place them in the /echo folder. These are the minimum needed to run our echo demo.
 
 ```
 - /mar/bill.hoon
 - /mar/mime.hoon
+- /mar/json/hoon
 - /lib/default-agent.hoon
-- -/lib/    
-    - debug.hoon
-    - skeleton.hoon
+- /lib/debug.hoon
+- /lib/skeleton.hoon
 ```
 
 7) Now we build our echo desk **in our zod ship**: Run:
@@ -1398,13 +1408,13 @@ If you get missing files, keep diving into %delta and copying files over to %ech
 >   [%0 values=~[10 5]]
 ```
 
-9) Go to localhost:8080, use +code at ~zods dojo terminal to get the passcode, and login to Landscape's Grid. You should see a %echo app, if successful.
+9) Go to `localhost:8080`, use the `+code` generator at ~zod's dojo terminal to get the passcode, and login to `Landscape's Grid`. You should see a %echo app, if successful.2
 
 **Preparing and Globbing the Front-end:**
 
-10) Now enter /echo/ui and run `npm install`.
+10) Now enter `/echo/ui` and run `npm install`.
 
-11) Delete the contents of /src/app.jsx, and paste the code found [here](https://github.com/hoon-school/app-school-2023.8/blob/master/aa4.md).
+11) Delete the contents of `/src/app.jsx`, and paste the code found [here](https://github.com/hoon-school/app-school-2023.8/blob/master/aa4.md).
 
 12) Go to the /dist/index.html folder/ Adjust the script tags to add type="module" and the paths accordingly:
 
@@ -1413,63 +1423,24 @@ If you get missing files, keep diving into %delta and copying files over to %ech
     <script type="module" src="/session.js"></script>
 ```
 
-13) Finally, goto localhost:8080/docket/upload, select the /dist folder and upload it. Glob it!
+13) Finally, goto `localhost:8080/docket/upload`, select the /dist folder and upload it. Glob it!
 
 14) If successful, the app should run in Landscape, with no inspection console errors!
 
-14)
 
-
-
-
-> npx @uribt/create-landscape-app
-> cd echo/ui
-> npm install @urbit/http-api
-> in package.json, add "homepage": /apps/echo"
-> add ~[%echo] to desk.bill (!!)
-- For our backend, we will just use delta.hoon!
-    - WE need to communicate via HTTP GET and PUT.
-    - eyre recieves and puts HTTP GET and PUTs.
-
-cd ../desk
-- copy over the mark and sur files for %delta
+**Other Notes:**
 
 - we will do our $json conversion in our mark. It comes in from Eyre, and goes to the gall app. We use the ++grab $json arm.
-
-- use JON: you give it an example, and it attempts to prodcue a reparser!!
-
+- use **JON**: you give it an example, and it attempts to prodcue a reparser!!
 - by default, our running server points to localhost:8080/apps/echo
-
 - what is a docket file? it helps Landscape's GRID load your app. Its like a readme and config file put together.
     - glob field:
         - glob-http: we have build a traditional site
         - glob-ames: if you want to distribute everything over ames.
             - doesn't work for fakezods...(not connected to ames!)
         - glob-site: we will serve from urbit directly. 
-
-- we need to get all our desk files (there are hundreds).
-> cp -r ../../zod/base/mar/* mar
-> cp -r ../../zod/base/lib/* lib
-> cp -r ../../zod/base/sur/* sur
-
--if you try to commit this desk...it will fail. Because docket-0 is not there. This is a landscape file, not an urbit file.
-
 - update your binary ./zod/.run next
 
-- npm run build...remmber to change <script tags to type module>
-
-- when the app is running, we need to get %docket globularo....we need to upload our built library files??  /docket/upload
-
-
-- also need 
-    - /mar/bill.hoon
-    - /mar/mime.hoon
-    - /lib/default-agent.hoon
-    - -/lib/    
-        - debug.hoon
-        - skeleton.hoon
-
-lidlut-tabwed-pillex-ridrup
 
 ### Agent and Arvo Commands in Dojo:
 

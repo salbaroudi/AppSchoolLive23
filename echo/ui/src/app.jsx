@@ -5,10 +5,13 @@ import { AppTile } from './components/AppTile'
 const api = new Urbit( '', '', window.desk )
 api.ship = window.ship
 
+
+//This is used to update our global store stack. Its just an array of values in the end.
+//
 function reducer( state, action ) {
   let newState = [ ...state ]
   switch ( action.type ) {
-    case 'init':
+    case 'init':  //initialize
       return action.init
     case 'push':
       newState.unshift(action.val)
@@ -23,14 +26,15 @@ function reducer( state, action ) {
 
 export function App() {
   const [ state, dispatch ] = useReducer( reducer, [] )
-  const [ inputValue, setInputValue ] = useState( "" )
+  const [ inputValue, setInputValue ] = useState( "" ) //so get inputValue and setInputValue are standard React library functions...
 
   useEffect(() => {
-    async function init() {
+    async function init() {  //we send an subscription request to api. handleUpdate is our event handler.
       api.subscribe( { app:"echo", path: '/values', event: handleUpdate } )
     }
     init()
-  }, [] )
+  }, [] ) //notice that we are using an IIFE, and our stack is initially empty.
+
 
   const handleUpdate = ( upd ) => {
     if ( 'init' in upd ) {
@@ -63,6 +67,21 @@ export function App() {
     } )
   }
 
+  const poke = () => {
+    const shipname = inputValue
+    alert("Shipname = " + shipname + "and window.ship =" + window.ship)
+    if (shipname == "") return
+    if (shipname == window.ship) return
+    api.poke( {
+      app: 'echo',
+      mark: 'echo-action',
+      json: { push: { target:`~${shipname}`, value:"5"} }
+    } )
+    setInputValue( "" )
+  }
+
+
+
   return (
     <main className="flex flex-col items-center justify-center min-h-screen">
       <input style={{width:200}} className='border' type='text' value={inputValue} onChange={(e) => setInputValue(e.target.value)}/>
@@ -74,6 +93,12 @@ export function App() {
           return (<li key={index}>{eachValue}</li>)
         })}
       </div>
+      <br />
+      <h3> Poke Request:</h3>
+      <input style={{width:200}}  className='border' type='text' value={inputValue} onChange={(e) => setInputValue(e.target.value)}/>
+      <button onClick={() => poke()} style={{width:100}} className='border p-2 text-black-400'>Poke Ship!</button>
+
+
     </main>
   )
 }
