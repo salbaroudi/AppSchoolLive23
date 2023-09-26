@@ -56,3 +56,7 @@ Q2: I guessed:
 
 - Next Steps:
 
+- how can we poke another ship, we don't have ames access?
+    - do we need to change the on-poke arm to send a card to on-agent?
+    - do we just clone our input box, and write a send() function? Just let it crash?
+        - we only need to submit an app.jsx, not an echo.hoon

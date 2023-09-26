@@ -26,7 +26,9 @@ function reducer( state, action ) {
 
 export function App() {
   const [ state, dispatch ] = useReducer( reducer, [] )
-  const [ inputValue, setInputValue ] = useState( "" ) //so get inputValue and setInputValue are standard React library functions...
+  const [ inputValue, setInputValue ] = useState( "" ) 
+  const [ inputShip, setInputShip ] = useState( "zod" )
+
 
   useEffect(() => {
     async function init() {  //we send an subscription request to api. handleUpdate is our event handler.
@@ -68,19 +70,16 @@ export function App() {
   }
 
   const poke = () => {
-    const shipname = inputValue
-    alert("Shipname = " + shipname + "and window.ship =" + window.ship)
+    const shipname = inputShip
     if (shipname == "") return
-    if (shipname == window.ship) return
+    console.log("Shipname = " + shipname + "and window.ship =" + window.ship)
     api.poke( {
       app: 'echo',
       mark: 'echo-action',
-      json: { push: { target:`~${shipname}`, value:"5"} }
+      json: { pop: `~${shipname}` }
     } )
-    setInputValue( "" )
+    setInputShip( "" )
   }
-
-
 
   return (
     <main className="flex flex-col items-center justify-center min-h-screen">
@@ -95,7 +94,7 @@ export function App() {
       </div>
       <br />
       <h3> Poke Request:</h3>
-      <input style={{width:200}}  className='border' type='text' value={inputValue} onChange={(e) => setInputValue(e.target.value)}/>
+      <input style={{width:200}}  className='border' type='text' value={inputShip} onChange={(e) => setInputShip(e.target.value)}/>
       <button onClick={() => poke()} style={{width:100}} className='border p-2 text-black-400'>Poke Ship!</button>
 
 

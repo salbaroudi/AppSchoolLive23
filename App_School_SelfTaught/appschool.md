@@ -941,6 +941,7 @@ Example: A %pass subscription, is structured as follows:
 
 #### Marks:
 - Unlike structure files, mark files are (usually) pretty simple. They allow us to convert to/from our given structure marks. In essence, they direct the top level translating, whilst the structures, mold, and basic system types handle the direct translations and grammar (so to speak).
+- **Notice:** At the top of our file is an import for a sur file (!).
 - Lets look again at a basic mold:
 
 ```
@@ -958,16 +959,19 @@ Example: A %pass subscription, is structured as follows:
 --
 ```
 
-- ++grab: Conversion TO our mark, from something else. 
+- ++grab: Conversion TO our mark, from something else.
+    - Invoked between Eyre/Ames and our Gall agent. We are converting outside data to something our Gall app understands.
     - **How it works:** we have a noun arm, (what we start from), it calls the action structure in the todo.hoon structure file in our library. So it calls: `(action:todo  [some-noun])` accordingly. Our noun is coerced to one of the type union options found in the action TU structure.
 - ++grow: Conversion FROM ourmark, to something else. 
     - **How it works:** Notice that we have a term name %noun for our arm. We also use the door input as the expression for the arm. Because everything is a noun...we just return what was passed in (trivial).
 - because this mark is found at /mar/todo/action.hoon, any term recieved that is `%todo-action` will be matched against this mark file for processing.
+- The particular example above is used if two Gall agents are talking to each other. If we have a FE, we need something a bit different.
 
 
 #### Dealing with JSON Data:
 
 - In Hoon, JSON is converted to an internal data-type - mainly nested cells with type information.
+    - There is *$json intermediate form*, and *native form*
     - this is because hoon is strongly typed, while Java Script ON conveys no type information at all.
     - this effectively decouples what json means versus how it is written. Meaning the same, representation varies.
 
@@ -1416,16 +1420,18 @@ If you get missing files, keep diving into %delta and copying files over to %ech
 
 11) Delete the contents of `/src/app.jsx`, and paste the code found [here](https://github.com/hoon-school/app-school-2023.8/blob/master/aa4.md).
 
-12) Go to the /dist/index.html folder/ Adjust the script tags to add type="module" and the paths accordingly:
+12) Now run `npm run build` in /echo/ui to compile your files.
+
+13) Go to the /dist/index.html folder/ Adjust the script tags to add type="module" and the paths accordingly:
 
 ```
     <script type="module" src="/apps/echo/desk.js"></script>
     <script type="module" src="/session.js"></script>
 ```
 
-13) Finally, goto `localhost:8080/docket/upload`, select the /dist folder and upload it. Glob it!
+14) Finally, goto `localhost:8080/docket/upload`, select the /dist folder and upload it. Glob it!
 
-14) If successful, the app should run in Landscape, with no inspection console errors!
+15) If successful, the app should run in Landscape, with no inspection console errors!
 
 
 **Other Notes:**
@@ -1440,6 +1446,37 @@ If you get missing files, keep diving into %delta and copying files over to %ech
             - doesn't work for fakezods...(not connected to ames!)
         - glob-site: we will serve from urbit directly. 
 - update your binary ./zod/.run next
+
+#### Lesson 5: 
+- an app is just a door
+- urbit core runs in four different modes
+    - 1: RT Vere VM
+    - 2: Kernel: Arvo and the Vanes
+    - 3: Userspace and Gall
+    - 4: User space / spider and kahn
+
+- anything with a hep (-) is a thread in Dojo
+- threads do a lot of computations, which may take a lot of inputs and outputs.
+- used for processes that might fail,
+
+-code vs +code (LOL)
+- we don't have a way of using a generator in an agent. So we use threads.
+
+- a vase separates the data itself, and the type/structure of the data.
+
+- calling a thread: on a different desk:  -sandbox!callthread
+- within an agent, it is different:
+    - Example: 
+
+- arguments must be placed in a unit
+
+- khan: returns through ++on-arvo
+
+- gall/spider through ++on-agent
+
+- %fard:  regular in arvo thread (/ted)
+- %fyre: initiated from outside ARvo (Runtime)
+- %lard: "inline" thread definition
 
 
 ### Agent and Arvo Commands in Dojo:
