@@ -1447,37 +1447,416 @@ If you get missing files, keep diving into %delta and copying files over to %ech
         - glob-site: we will serve from urbit directly. 
 - update your binary ./zod/.run next
 
-#### Lesson 5: 
+### Lesson 5: Threads, Khan and Spider
 - an app is just a door
-- urbit core runs in four different modes
-    - 1: RT Vere VM
+- urbit cores run in four different modes:
+    - 1: Runtime (Vere VM, IO, jets)
     - 2: Kernel: Arvo and the Vanes
-    - 3: Userspace and Gall
-    - 4: User space / spider and kahn
+    - 3: Userspace, managed by Gall
+    - 4: User Space / Spider and Kahn
 
-- anything with a hep (-) is a thread in Dojo
+- A thread is a function that may or may not produce a result.
+- anything with a hep (-) is a thread in Dojo console.
 - threads do a lot of computations, which may take a lot of inputs and outputs.
-- used for processes that might fail,
-
--code vs +code (LOL)
+- used for processes that might fail. They are like **promises.**
 - we don't have a way of using a generator in an agent. So we use threads.
+- **threads can be found in the /ted folder**
 
-- a vase separates the data itself, and the type/structure of the data.
+##### Threads v.s Functions and Gall Agents:
 
-- calling a thread: on a different desk:  -sandbox!callthread
+- A funciton maps an input to an output. For a usual function (a gate or arm of a core), we have a definite result. 
+    - Assuming we pass correct inputs, it will produce a reliable output.
+    - A thread is a function that may or may not produce a result.
+- Gall agents are permanent and bulletproof. All state transitions are defined, and everything is a transaction.
+    - They cannot deal with complex inputs, or unreliable operations.
+        - this is why we use threads in Gall Agents.
+- A thread can easily perform complex IO, and run a non-guarenteed computation.
+- Threads have weaknesses however. They may fail unexpectedly.
+    - if it recieves anything it didn't expect, it fails.
+    - when the code is upgraded, a running thread cant be upgraded so it also fails.
+- to maximize permanece and persistance in gall agents, we reduce a complex sequence with IO to signle operation, and then pack everything into a thread. this keeps our Gall agent code more clean and simple.
+
+
+#### How Thread Work (with Spider):
+
+- Note: I put my code examples in teh ~bud folder (zod was being used). Code examples will be listed below:
+- lets take a look at a simple thread, and examine its parts:
+
+```
+/-  spider  ::load the spider structure file
+/+  strandio  ::load the strandio library
+=,  strand=strand:spider ::rename strand arm so its shorter.
+
+^-  thread:spider  ::we return a thread structured output
+::  args to our gate, just a vase
+|=  arg=vase 
+=/  m  (strand ,vase) ::leg, call strand with a structure vase) - comma usually means switch to structure mode.
+^-  form:m  ::take our vase, produce a strand with the vase inside.
+::our strand produces outputs (takes inputs), and an output vase will be produced (if successful.)
+
+::pin an extracted vase to the subject - this is our arguments in.
+=+  !<([~ arg=@dr] arg)
+
+::mic gal:  ;<   {mould}   {bind}  {expr1}    {...expr2}
+::each mic gal is chained into the 4th child slot, to make a pipeline of computations.
+:: mold: now-1  
+;<  now-1=@da  bind:m  get-time:strandio
+;<  ~          bind:m  (sleep:strandio arg)
+;<  now-2=@da  bind:m  get-time:strandio
+(pure:m !>(`@dr`(sub now-2 now-1)))
+```
+
+- The most complicated idea about threads is the strand and form strucutres. Consider the following lines:
+
+```
+|=  arg=vase
+=/  m  (strand ,vase)
+^-  form:m
+```
+
+- Our thread is a gate that takes a vase.
+- It returns *"a the form of a strand, that produces a vase"*.
+    - threads don't produce results, they produce a strand structure, that takes IO, and stores an output vase which can be inspected.
+- **Strucure:** Thread(input:vase)  --> Outupt: Strand(Various Input, Outputs, including resulting vase).
+
+##### Understanding Mic-Gal (;<):
+
+- This rune produces thread pipelines, which indefinitely run until a termination condition occurs.
+- formally known as "monadic DI notation"
+- Syntax: `;<  mold bind expr1 expr2`
+    Where:
+        - mold: a structre mold
+        - bind:  a gate which takes our mold, and implements a monadic bind (like a Promise (Async)).
+        - expr1: our current computation.
+        - expr1 and expr2 are two expressions that pipe into one another. 
+        - expr2 is typically the next mig-gal rune
+
+- within micgal, we are using important arms that belong to strand:
+    - form:the mold of the strand, a specialized type that the thread will produce.
+    - pure: a strand that only returns a value
+    - bind: monadic bind, akin to **then** in Javascript Promises.
+
+- Bind is like Then for Promises:
+    - Bind takes two gates. The first is called to perform the computation. If it succeeds, it calls the second and passes on the values to the
+    next computation.
+- Notice that we have a mold at the beginning of every mig-gal: We can restructure/cast the output of our last computation for our current input.
+- threads will continue to fetch and execute until a %done mark is produced, in which it terminates.
+
+
+##### Calling a Thread:
+- calling a thread in %base: `-threadname <input>`
+- outside of base:  `-deskname!callname <input>`
+
+#### Starting a Thread: From the Thread Guide:
+
+- this subsection goes over running a thread in a Gall Agent.
+- 
+
+
+- Q: How do we call a thread in an agent?  
+    -A: You send two pass cards: one to do a one-time subscribe, the other to invoke %spider.
+
+
+##### Lifecycle of the Thread-Starter App:
+
+- After peppering thead-starter.hoon with sigpams, this is the lifecycle of the spider invocation:
+- Send `:thread-starter  [%test-thread %foo]` from Dill to our Gall Agent. 
+-  ++on-poke: recieves the poke. It is formatted as a %noun via a generic system mark.
+- we format our spidre arms, and process the mark/vase.
+- Card 1: A %pass card that subscribes to the spider vane.
+- Card 2: A %pass card that invokes the spider vane, and sends the data packet vase.
+- Spider: sends %poke-ack back.
+- ++on-agent recieves all of the spider responses (they are over the subscription wire - even the poke-ack).
+- Spider: sends a %fact back, with the result.
+- Spider: Sends a %kick, terminates the one-time subscription.
+
+- **Notice:**  
+    - Our thread has almost no code. Our %spider vane has done all of the work, sending three resposes, as seen above.
+    - gall/spider through ++on-agent
+        - Compare to Khan (which returns through ++on-arvo...later).
+
+
 - within an agent, it is different:
     - Example: 
 
 - arguments must be placed in a unit
 
-- khan: returns through ++on-arvo
-
-- gall/spider through ++on-agent
 
 - %fard:  regular in arvo thread (/ted)
 - %fyre: initiated from outside ARvo (Runtime)
 - %lard: "inline" thread definition
 
+### App School Lesson 6: Production Apps:
+
+- Key Lessons:  Error Logging,  Developer Experience (poles, generators, upgrading app state), unit testing, deployment.
+
+#### Debugging and Commenting:
+
+##### Sources of Failure:
+
+- Its finally time to compile all of the weird Dojo errors that we run into.
+
+1) **Nest Fail:** This is a basic type error. This occurs when we use data-types in an exprssion or gate, that doesn't nest in the expected type. Consider the specific example:
+
+```
+> (add 'a' 'b')  
+195  
+> (add "a" "b")  
+-need.@  
+-have.[i=@tD t=""]  
+> (add [1 2] [3 4])
+-need.@
+-have.[@ud @ud]
+```
+
+Recall that we can use other types in a gate, if the type we are using nests correctly. Notice that add actually takes an empty aura (@),not an @rs or @ud like we would normally use.  In the second example, we feed add a tape which does not nest at all - for this is not an atomic type. The same thing happens when we pass in cells.
+
+2) **mint-?**: Are typechecking errors that arise from the compiler's inferences on code (like unreached branches or impossible conditions).
+
+- *mint-vain:*  There is a branch in a conditional that cannot be reached.  
+    - **Why** is it called mint-vain? One meaning of the word "vain" (other than excessive pride in ones appearance), is to be marked by something futile or ineffective. Our extraneous cases are just that.
+
+```
+ =/  animal  *?(%bat %cow %dog)
+  ?-  animal
+    %bat  1
+    %cow  2
+    %dog  3
+    %ent  4
+  ==
+```
+
+- *mint-lost:*  One of the required type branches is missing. This often occurs for type union structures with wuthep (?-)
+
+```
+ =/  animal  *?(%bat %cow %dog)
+  ?-  animal
+    %bat  1
+    %cow  2
+  ==
+```
+
+- *mint-nice:*  Are just more general type-mismatch errors.
+
+
+3)  *fish-loop:* Error that occurs with recursive mold definitions (??). "++Fish goes fishing for the type of an expression" :
+
+```
+> ?=((list @) ~[1 2 3 4])
+[%test ~[[%.y p=2]]]
+fish-loop
+
+```
+
+This fails because ~[1 2 3 4] could be interpreted a number of ways.
+
+
+4) **Generator-build-fail:**  composing code with mismatched runes (that don't make sense), or dangling child slots occur.
+
+
+5) **Mull-Grow:** (?)  means its compiling the callsite of a wet-gate (a generic gate: we will see these later)
+
+6) **Bail:** This is a serious error that results in a crash of the executable itself.
+
+7) **Misuse of the $ arm:**  This ocurs when we attempt to use the buc arm of something that doesn't have it. We basically thought something was a gate (when it was not!).
+
+    - *$.+2:*  We have no battery in our given object (it is not a gate). 
+
+    - *find.$:*  this occurs when we look for a $ arm in a core like object, but it does not have a $ arm. For example, we could have a core with named arms and no default arm.  Example:  `*(add)` or `*(tape)`.
+
+8)  **Syntax-Errors:**  Simply, given a hoon expression, the compilier cannot parse it sensibly. The most common occurance is when you don't use double spaces in Tall Formed expressions. This can occur with misaligned/dangling child slots, or just mismatching runes non-sensically.  The compiler will tell you where this occurs.
+
+##### Debugging Strategies:
+
+There are a number when an error has hit, including:
+
+1)  Use the Debugging Stack:  Utilize the zapcol (!:) and zapdot (!.) runes. They behave as follows:
+
+- zapcol (!:):  `!:  <p>` where <p> is any hoon expression (simple or complex). This rune turns on the trace for the given expression p.
+- zapdot (!.):  `!.  <q>` where <q> is any hoon expression (simple or complex). This rune turns on the trace for the given expression q.
+- Typical Usage:
+    - Use zapcol on a given section of code, and pepper the subexpressions with zapdot to turn off debugging for specific branches (that you know are fine).
+
+
+2) Use ket-hep to enforce return types of gates, and ^ casts to avoid typing errors thrown by the compiler, when possible.
+
+3)  Binary Search, and Binary Build-up:  If you have an error in a block of code, cut your code in half, and run it to see if the error appears. Move to other sections until the error appears.  
+    -  replace a complicated function with a ~&, or a hardcoded default value, or a !! zapzap.
+
+4) Use the %dbug Agent wrapper: This should be included with every Gall app *by default*. Recall you can invoke +dbug with `:appname  +dbug` to inspect its current state in Dojo, at any time.
+
+- You can also use the webconsole agent for debugging, by running `|start %dbug` and going to `localhost:8080/~debug`. Here you can query state, and examine incoming and outgoing requests. A bit like wireshark, in some ways.
+
+
+
+##### Code Documentation:
+- give your comments breathing room. Don't make crowded comments within lines of code (at the ends of code lines).
+- Code Grading Scheme:
+    - Ladders: 
+        - if it just looks like hoon code, it get an "F".
+        - if it compiles, it get a "D".
+        - If it follows layout, structure and naming conventions, it gets a "C".
+        - If in addition, every non-trivial face is explained, it gets a "B"
+        - Finally, every %constant must be defined where it is used, we get an "A".
+    
+    - Snakes:
+        - Producing A code before a library is stable, is a sin.
+        - Code that changes without updating documentation. Just one wrong comment => Code drops to "D".
+
+#### Unit Testing:
+
+- We have various methods to detect improper state, conditions, or poor outputs.
+
+1) Fences and Barriers: We use positive and negative assertions to test statements about subjects in the program. If these tests are broken,
+we halt execution (improper state). Use ?> (watgar, positive assertion) and ?< (watgal, negative assertion) for this.
+
+2) Unit Tests:  Interrigate individual functions and methods (units) of code. They typically work on small bits of the code, running a piece of code with a given input, and comparing its output to our expected output. A matched output to expectation gives us a passing test.
+
+##### Unit Test Catagories:
+
+1)  ++expect-eq: Equality of two expressions
+2)  ++expect-fail  (failure/crash of an expression)
+
+
+##### Getting Unit Tests to Run:
+
+- In any desk with an app, we should have a /test folder where we keep our tests.
+- Calling a test file in the dojo: `-test ~[/===/tests/app/my-agent]`
+- An example of a simple unit test file (for the absolute value gate of @rs) is below:
+
+```
+::/tests/lib/absolute.hoon
+
+/+  *test, *absolute
+|%
+++  test-absolute
+  ;:  weld
+  %+  expect-eq
+    !>  .1
+    !>  (absolute .-1)
+  %+  expect-eq
+    !>  .1
+    !>  (absolute .1)
+  %+  expect-eq
+    !>  .0
+    !>  (absolute .0)
+  %-  expect-fail
+    |.  (absolute '0')  ::actually succeeds
+  ==
+--
+```
+- Notice the general structure of our test:
+    - we use cenlus to call a gate (expect-eq) on two arguments.
+    - each argument is wrapped in a vase (its type inferred).
+    - expect-eq then takes our two vases, and compares the two values (unwrapped). If the content and type matches, the two values should match.
+
+- Our sample library file to test is:
+
+```
+::/lib/absolute.hoon
+|%
+++  absolute
+  |=  a=@rs
+  ?:  (gth a .0)  a
+  (sub:rs .0 a)
+--
+```
+- to call a unit test, use: `=test  /=testsdesk=/tests/lib/absolute/hoon`. Adjust the path at the end accordingly, and "." must be replaced with a fas.
+
+
+##### Producing Error Messages:
+
+- a **tang** is a list of tanks.
+- a **tank** is a structure for printing data.
+    - we use tanks to extract pieces of data - because if we print out the subject tree, we end up blowing up the console.
+    - **Types of Tanks:**
+        - Leaf: prints out a single noun
+        - Rose: Prints rows of data
+        - Palm: Prints backstep-indented lists (like stack traces??)
+- We can print error messages using special runes:
+    - ~_ (sigcab): `~_  p  q`: Show p in stack trace if q fails.
+    - ~| (sigbar): `~|  p q`: show p in stack trace if q fails, but prettyprint it.
+
+
+#### Best Practices, the Software Lifecycle:
+
+
+
+
+#### App Architecture:
+
+
+
+
+
+
+
+
+
+
+
+- today we look at a particular application called %squad (simple groups).
+    - demonstrates Sail. 
+    - Error logging
+    - Work on the Squad app!
+        - https://developers.urbit.org/guides/quickstart/groups-guide
+        - https://github.com/urbit/docs-examples/blob/main/groups-app/bare-desk/app/squad.hoon
+
+
+- squad sur file:
+    - acl: access control list
+    - note actions and update structures are all in one file.
+    - some actions: like kick, notify all subscribers (gid filed)
+
+
+
+- do and did are the action and update, respectively.
+- /= index apps/squad/index (our base page url)
+- on init: we are always added to ~pocwets squad!
+
+
+- changes to on-peek:
+    - lets add a whatlus (which has a default). WE can also make an error message when we hit default.
+
+    ```
+    ++ onpeek
+
+    |=  =path
+
+    ^-  (unit (unit cage))
+    ?+  path ~|('custom error message' (on-peek:def  path)) 
+    ```
+
+    - in [%x  %squad @ @ ~]
+        => garbage notation =/ =gid [(slav %p ship) i.i.i.t....] 
+        => lets add faces to make things simpler.
+    - change gate input to a pole (a list with no faces i/t)
+
+- two errors you get with gates:
+    1) You get a -have  [**  asd.53.23.  %137]. Something you thought was a piece of data, is actually a mold/gate.
+    2) -find.$ +2
+        - inside my battery: I am looking for a $ which isnt there, or there isnt a +2
+        - trying to use something that is not a gate, as a gate.
+
+- Barket:  Sort of like a trap...but you can have multiple arms inside of it!
+what a trap really is:  |-  +(2) is just
+
+```
+=< $
+|%
+++  $
+    +(2)
+--
+```
+
+- common poke format: accept a poke from a common ship, sanitize it, and then poke ourselves to perform action.
+
+- you can just add more arms to your agent (see ++handle action)
+
+- you publish your agent by using the |treaty command, and it broadcasts it to the network.
+
+
+-en-json:format/html to convert your json over.
 
 ### Agent and Arvo Commands in Dojo:
 
