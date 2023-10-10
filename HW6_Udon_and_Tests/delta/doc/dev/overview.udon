@@ -1,0 +1,64 @@
+## App Developer Documentation File:
+
+The %delta desk consists of a pair of applications (%delta and %delta-follower).  This pair of tutorial apps are designed to illustrate the following concepts:
+
+- Pokes
+- Subscriptions
+- Basic State Manipulation (via a list that acts as a stack, with %pop and %push operations).
+
+
+### Application and Desk Structure:
+
+The %delta desk is just generated from `|merge %delta our %base`, with the following files added:
+
+```
+%delta
+├── app
+│   ├── delta.hoon
+│   └── delta-follower.hoon
+│       
+├── sur 
+│   ├── delta.hoon
+├── mar
+    └── delta
+       ├── action.hoon
+       └── update.hoon
+
+```
+
+
+#### Summary of Applications:
+
+-  *%delta:*
+    + Pokes
+        + [%push target=@p value=@] 
+        + [%pop target=@p] 
+    + Subscriptions (update responses):
+        + [%init values=(list @)]
+    + Scries/Peeks
+
+- **%delta-follower:**
+    + Pokes (via ++on-poke arm):
+        + [%sub target=@p]
+        + [%unsub target=@p]
+    + Responses (from %delta, via ++on-agent arm)
+        + [%watch-ack]
+        + [%kick]
+        + [%fact] (for state updates, sent by subscriber wire)
+
+
+
+- These applications together, are fairly simple. They share the same structure file, and use default arms, with the exception of ++on-poke, ++on-peek and ++on-agent
+(which are custom).
+- Wire path used to communicate state chages: /value
+- Libraries imported (structures and other):  delta, dbug. default-agent.
+- *Basic Interaction Pattern:* You push/pop values to manipulate delta's stack. delta-follower subscribes to delta, and recieves updates everytime the
+number stack is altered.
+
+
+#### References:
+
+For more infomration on building the %delta desk, see Neal Davis's [ASL Notes](https://github.com/hoon-school/app-school-2023.8/blob/master/aa2.md)
+
+
+END

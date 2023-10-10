@@ -1,0 +1,70 @@
+;>
+
+## App User Documentation File:
+
+The %delta desk consists of a pair of applications (%delta and %delta-follower).  This pair of tutorial apps are designed to illustrate the following concepts to ASL 
+learners:
+
+- Pokes
+- Subscriptions
+- Basic State Manipulation (via a list that acts as a stack, with %pop and %push operations).
+
+
+### Setting up %delta and %delta-follower:
+
+- Once the two applicaitons have been installed (in Dojo console), A running session can be setup, for a learner to experiment with.
+
+The applications accept the following actions:
+
+-  *%delta:*
+    + Pokes
+        + [%push target=@p value=@] 
+        + [%pop target=@p] 
+    + Subscriptions (update responses):
+        + [%init values=(list @)]
+    + Scries/Peeks
+
+- **%delta-follower:**
+    + Pokes (via ++on-poke arm):
+        + [%sub target=@p]
+        + [%unsub target=@p]
+    + Responses (from %delta, via ++on-agent arm)
+        + [%watch-ack]
+        + [%kick]
+        + [%fact] (for state updates, sent by subscriber wire)
+
+- A typical session, to setup the two agents (for experimentation), is below. To interact with agents, use `:agent-name &action-name [inputs...]` notation on the Dojo
+command line.
+
+(1) Setup the %delta stack:
+
+```
+> :delta  &delta-action [%push ~zod 10.000]
+> :delta  &delta-action [%push ~zod 20.000]
+> :delta  &delta-action [%push ~zod 30.000]
+```
+
+
+(2) Subscribe to %delta-with %delta-follower:
+
+```
+> :delta-follower [%sub ~zod]
+```
+
+(3)  Pop from the %delta stack, get a response over wire with %delta-follower:
+
+```
+> :delta &delta-action [%pop ~zod]
+```
+
+4) Cancel Subscription:
+
+```
+> :delta-follower [%unsub ~zod]
+```
+
+END
+
+
+
+

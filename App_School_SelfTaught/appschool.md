@@ -1786,6 +1786,14 @@ we halt execution (improper state). Use ?> (watgar, positive assertion) and ?< (
 #### App Architecture:
 
 
+- tests (clay sing errors) come back to haunt us
+
+- Udon Questions:
+    - how do we run docs, and test our docs for delta?
+    - |install docs app on ~fakezod??
+
+- For our Github, the entire desk, or just the files we added to delta + readme.md?
+
 
 
 
