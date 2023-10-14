@@ -1,5 +1,5 @@
 ::  pals mutual icon
-::
+::  Wrapper for the sigil library, build each users sigil in svg filetype
 /-  *pals
 /+  rudder, sigil
 ::

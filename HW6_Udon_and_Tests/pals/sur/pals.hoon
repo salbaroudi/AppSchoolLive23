@@ -19,7 +19,7 @@
   $%  [%hey ~]
       [%bye ~]
   ==
-::
+:: Meet is an outgoing request for a target. Part is to cancel it.
 +$  command  ::  from ourselves
   $%  [%meet =ship in=(set @ta)]  ::  empty set allowed
       [%part =ship in=(set @ta)]  ::  empty set implies un-targeting
@@ -30,7 +30,7 @@
       leeche-effect
   ==
 ::  Why are the heys and buys sub-typed based on target and leech?
-+$  target-effect
++$  target-effect 
   $%  [%meet =ship]  ::  hey to target
       [%part =ship]  ::  bye to target
   ==

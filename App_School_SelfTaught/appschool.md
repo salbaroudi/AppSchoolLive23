@@ -1721,7 +1721,6 @@ we halt execution (improper state). Use ?> (watgar, positive assertion) and ?< (
 ##### Getting Unit Tests to Run:
 
 - In any desk with an app, we should have a /test folder where we keep our tests.
-- Calling a test file in the dojo: `-test ~[/===/tests/app/my-agent]`
 - An example of a simple unit test file (for the absolute value gate of @rs) is below:
 
 ```
@@ -1749,6 +1748,7 @@ we halt execution (improper state). Use ?> (watgar, positive assertion) and ?< (
     - we use cenlus to call a gate (expect-eq) on two arguments.
     - each argument is wrapped in a vase (its type inferred).
     - expect-eq then takes our two vases, and compares the two values (unwrapped). If the content and type matches, the two values should match.
+    - weld apparently couples the tests together in some way (?)
 
 - Our sample library file to test is:
 
@@ -1761,8 +1761,21 @@ we halt execution (improper state). Use ?> (watgar, positive assertion) and ?< (
   (sub:rs .0 a)
 --
 ```
-- to call a unit test, use: `=test  /=testsdesk=/tests/lib/absolute/hoon`. Adjust the path at the end accordingly, and "." must be replaced with a fas.
+- **(!!)** to call a unit test (on a non %base desk), use: `-test  /={deskname}=/tests/lib/absolute/hoon`. Adjust the path at the end accordingly, and "." must be replaced with a fas.
 
+#### Testing App Agents:
+
+- unlike testing a library, the situation is more complex, because:
+    - our app must be running.
+    - the app itself could be located in a different desk.
+
+- A core component of app testing is subject modification runes (tis-es):
+
+- Recall:
+    - tisdot (=.): Usage `=. p q r`, where p is a leg in the subject, q is what we are changing it to, and r is an expression we run / extra child slot. The subject does not change, we just change a leg in the subject.
+    - tisfas (=/): Usage: `=/  name=type  value  expression`.
+    => tisket ()=^):  Usage:  `=^  p q r s` = `=/ p -.r  =.(q +.r s))`. Where p is a new name (with optional type), q is the name of an existing subject wing, r is an expression that produces [p value, new q value], and s is more code to be evaluated against modified subject.
+    
 
 ##### Producing Error Messages:
 

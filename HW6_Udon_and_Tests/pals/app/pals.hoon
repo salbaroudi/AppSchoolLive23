@@ -81,7 +81,7 @@
     (on-poke %pals-command !>(`command`[%meet ~paldev ~]))
   :_  this
   :+  [%pass /jael/pubs %arvo %j %public-keys ~]
-    [%pass /eyre/connect %arvo %e %connect [~ /[dap.bowl]] dap.bowl]
+    [%pass /eyre/connect %arvo %e %connect [~ /[dap.bowl]] dap.bowl]  ::why??
   cards
 ::
 ++  on-save  !>(state)
